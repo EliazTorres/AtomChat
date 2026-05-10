@@ -1,0 +1,51 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+}
+
+.thread {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 160px;
+}
+
+.threadInner {
+  max-width: 896px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+/* Typing indicator */
+.typingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.typingDots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.typingText {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* Pinned tab empty */
+.pinEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 60px var(--space-xl);
+  text-align: center;
+}
+
