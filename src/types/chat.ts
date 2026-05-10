@@ -36,6 +36,7 @@ export interface UserProfile {
 export type NavItem = {
   id: string;
   label: string;
+  /** A valid Google Material Symbols identifier, e.g. "search", "settings", "chat" */
   icon: string;
   active?: boolean;
 };

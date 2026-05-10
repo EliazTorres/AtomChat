@@ -5,6 +5,16 @@ import type { AIProvider } from '../services/aiProviders';
 
 const STORAGE_KEY = 'ai-chat-settings';
 
+// ── API-key obfuscation (reduces localStorage plaintext exposure) ───────────
+// Not a substitute for a real secret store, but meaningfully reduces exposure
+// from tooling / extensions that scan localStorage for bare API-key strings.
+function encodeApiKey(key: string): string {
+  try { return btoa(encodeURIComponent(key)); } catch { return key; }
+}
+function decodeApiKey(stored: string): string {
+  try { return decodeURIComponent(atob(stored)); } catch { return stored; }
+}
+
 export type Theme = 'dark' | 'light';
 
 export interface AISettings {
@@ -39,7 +49,12 @@ const SettingsContext = createContext<SettingsContextType | null>(null);
 function load(): AISettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<AISettings>;
+      // Decode obfuscated API key (falls back to raw value for backwards compat)
+      if (parsed.apiKey) parsed.apiKey = decodeApiKey(parsed.apiKey);
+      return { ...DEFAULT_SETTINGS, ...parsed };
+    }
   } catch { /* ignore */ }
   return DEFAULT_SETTINGS;
 }
@@ -55,7 +70,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => { applyTheme(settings.theme); }, [settings.theme]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    const toSave: AISettings = {
+      ...settings,
+      // Store the API key obfuscated, not as bare plaintext
+      apiKey: encodeApiKey(settings.apiKey),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   }, [settings]);
 
   const updateSettings = (patch: Partial<AISettings>) =>

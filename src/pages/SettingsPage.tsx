@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useChat } from '../context/ChatContext';
 import { AI_PROVIDERS } from '../services/aiProviders';
@@ -11,13 +11,17 @@ type TestStatus = 'idle' | 'testing' | 'ok' | 'error';
 
 export function SettingsPage() {
   const { settings, updateSettings, provider } = useSettings();
-  const { conversations } = useChat();
+  const { conversations, importConversations } = useChat();
   const [showKey, setShowKey] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   const [testError, setTestError] = useState('');
   const [saved, setSaved] = useState(false);
   const [importMsg, setImportMsg] = useState('');
   const importRef = useRef<HTMLInputElement>(null);
+  const testAbortRef = useRef<AbortController | null>(null);
+
+  // Abort any in-flight connection test when the page unmounts
+  useEffect(() => () => { testAbortRef.current?.abort(); }, []);
 
 
   const handleProviderChange = (id: string) => {
@@ -51,13 +55,18 @@ export function SettingsPage() {
   };
 
   const handleTest = async () => {
+    testAbortRef.current?.abort();
+    const ac = new AbortController();
+    testAbortRef.current = ac;
+
     setTestStatus('testing');
     setTestError('');
     const model =
       provider.id === 'custom'
         ? settings.customModelId || 'gpt-4o-mini'
         : settings.model;
-    const result = await testConnection(provider, settings.apiKey, model, settings.customBaseUrl);
+    const result = await testConnection(provider, settings.apiKey, model, settings.customBaseUrl, ac.signal);
+    if (ac.signal.aborted) return; // component unmounted or re-triggered
     if (result.ok) {
       setTestStatus('ok');
     } else {
@@ -79,22 +88,46 @@ export function SettingsPage() {
     if (!file) return;
     try {
       const text = await file.text();
-      const parsed: Conversation[] = JSON.parse(text);
-      if (!Array.isArray(parsed)) throw new Error('Invalid format');
-      const revived = parsed.map((c) => ({
-        ...c,
-        createdAt: new Date(c.createdAt),
-        updatedAt: new Date(c.updatedAt),
-        messages: c.messages.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })),
-      }));
-      // Merge: add only conversations not already present
-      const existing = JSON.parse(localStorage.getItem('ai-chat-conversations') ?? '[]');
-      const ids = new Set(existing.map((c: Conversation) => c.id));
-      const newOnes = revived.filter((c) => !ids.has(c.id));
-      localStorage.setItem('ai-chat-conversations', JSON.stringify([...newOnes, ...existing]));
-      setImportMsg(`✅ Imported ${newOnes.length} conversation${newOnes.length !== 1 ? 's' : ''}. Refresh to see them.`);
-    } catch {
-      setImportMsg('❌ Invalid file — expected a JSON export from this app.');
+      const parsed: unknown = JSON.parse(text);
+
+      // ── Schema validation ──────────────────────────────────────
+      if (!Array.isArray(parsed)) throw new Error('Root must be an array.');
+      const validated = (parsed as unknown[]).map((item, idx) => {
+        if (typeof item !== 'object' || item === null) throw new Error(`Item ${idx} is not an object.`);
+        const c = item as Record<string, unknown>;
+        if (typeof c.id !== 'string') throw new Error(`Item ${idx}: missing string "id".`);
+        if (typeof c.title !== 'string') throw new Error(`Item ${idx}: missing string "title".`);
+        if (!Array.isArray(c.messages)) throw new Error(`Item ${idx}: "messages" must be an array.`);
+        const messages = (c.messages as unknown[]).map((m, mi) => {
+          if (typeof m !== 'object' || m === null) throw new Error(`Item ${idx}, message ${mi} is not an object.`);
+          const msg = m as Record<string, unknown>;
+          if (msg.role !== 'user' && msg.role !== 'assistant') throw new Error(`Item ${idx}, message ${mi}: invalid role.`);
+          if (typeof msg.content !== 'string') throw new Error(`Item ${idx}, message ${mi}: missing string "content".`);
+          return {
+            ...msg,
+            id: typeof msg.id === 'string' ? msg.id : crypto.randomUUID(),
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content as string,
+            timestamp: new Date(msg.timestamp as string),
+          };
+        });
+        return {
+          ...c,
+          id: c.id as string,
+          title: c.title as string,
+          messages,
+          createdAt: new Date(c.createdAt as string),
+          updatedAt: new Date(c.updatedAt as string),
+          pinned: typeof c.pinned === 'boolean' ? c.pinned : false,
+          workspaceId: typeof c.workspaceId === 'string' ? c.workspaceId : undefined,
+        } satisfies Conversation;
+      });
+
+      const count = importConversations(validated);
+      setImportMsg(`✅ Imported ${count} new conversation${count !== 1 ? 's' : ''}.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setImportMsg(`❌ Import failed: ${msg}`);
     }
     e.target.value = '';
   };

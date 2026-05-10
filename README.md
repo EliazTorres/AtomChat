@@ -2,8 +2,8 @@
   <img src="https://img.shields.io/badge/Atom_AI-v4.1.0-5e5ce6?style=for-the-badge&logo=atom&logoColor=white" />
   <img src="https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react&logoColor=white" />
-  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?style=for-the-badge&logo=typescript&logoColor=white" />
-  <img src="https://img.shields.io/badge/Vite-6-646cff?style=for-the-badge&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/TypeScript-6-3178c6?style=for-the-badge&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vite-8-646cff?style=for-the-badge&logo=vite&logoColor=white" />
 </div>
 
 <br />
@@ -170,8 +170,8 @@ src/
 | `react-markdown` | Markdown rendering |
 | `remark-gfm` | GitHub-flavored Markdown |
 | `react-syntax-highlighter` | Code block highlighting |
-| `vite` 6 | Build tool + dev server |
-| `typescript` 5 | Type safety |
+| `vite` 8 | Build tool + dev server |
+| `typescript` 6 | Type safety |
 
 ---
 

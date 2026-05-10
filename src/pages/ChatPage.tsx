@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
 import { useChat } from '../context/ChatContext';
 import { TopBar } from '../components/TopBar';
@@ -12,6 +12,7 @@ export function ChatPage() {
   const { getConversation, sendMessage, isTyping, streamingMessageId } = useChat();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'recent' | 'pinned'>('recent');
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const conversation = getConversation(conversationId);
 
@@ -19,9 +20,10 @@ export function ChatPage() {
     if (!conversation) navigate({ to: '/' });
   }, [conversation, navigate]);
 
+  // Scroll to the bottom sentinel whenever messages are added or streaming updates
   useEffect(() => {
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-  }, [conversation?.messages.length]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [conversation?.messages.length, streamingMessageId]);
 
   if (!conversation) return null;
 
@@ -73,6 +75,9 @@ export function ChatPage() {
               <span className={`${styles.typingText} t-label-sm`}>AI is typing…</span>
             </div>
           )}
+
+          {/* Scroll-to-bottom sentinel */}
+          <div ref={bottomRef} style={{ height: 1 }} aria-hidden="true" />
         </div>
       </section>
 
@@ -84,3 +89,4 @@ export function ChatPage() {
     </div>
   );
 }
+

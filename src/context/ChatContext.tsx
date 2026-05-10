@@ -48,6 +48,8 @@ interface ChatContextType {
   deleteConversation: (id: string) => void;
   pinConversation: (id: string) => void;
   renameConversation: (id: string, title: string) => void;
+  /** Merges an array of validated Conversation objects into state, skipping duplicates. Returns the count of newly added conversations. */
+  importConversations: (incoming: Conversation[]) => number;
   isTyping: boolean;
   streamingMessageId: string | null;
   typingConversationId: string | null;
@@ -273,7 +275,7 @@ export function ChatProvider({ children, getAIConfig }: ChatProviderProps) {
     );
 
   const createConversation = (workspaceId?: string): string => {
-    const id = `conv-${Date.now()}`;
+    const id = crypto.randomUUID();
     setConversations((prev) => [
       { id, title: 'New Chat', messages: [], createdAt: new Date(), updatedAt: new Date(), workspaceId },
       ...prev,
@@ -294,12 +296,23 @@ export function ChatProvider({ children, getAIConfig }: ChatProviderProps) {
       prev.map((c) => (c.id === id ? { ...c, title } : c))
     );
 
+  const importConversations = (incoming: Conversation[]): number => {
+    let count = 0;
+    setConversations((prev) => {
+      const existingIds = new Set(prev.map((c) => c.id));
+      const newOnes = incoming.filter((c) => !existingIds.has(c.id));
+      count = newOnes.length;
+      return newOnes.length > 0 ? [...newOnes, ...prev] : prev;
+    });
+    return count;
+  };
+
   return (
     <ChatContext.Provider
       value={{
         conversations, getConversation, sendMessage, regenerateLastResponse,
         editMessage, setMessageFeedback, clearConversation, createConversation,
-        deleteConversation, pinConversation, renameConversation,
+        deleteConversation, pinConversation, renameConversation, importConversations,
         isTyping, streamingMessageId, typingConversationId,
       }}
     >

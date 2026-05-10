@@ -14,10 +14,18 @@ const NAV_ITEMS = [
   { id: 'settings', icon: 'settings', label: 'Settings', path: '/settings', action: null },
 ];
 
-const RESOURCE_ITEMS = [
-  { id: 'docs', icon: 'description', label: 'Docs', href: 'https://platform.openai.com/docs' },
-  { id: 'support', icon: 'help_outline', label: 'Support', href: 'https://help.openai.com' },
-];
+/** Support / status-page URLs keyed by provider id */
+const SUPPORT_URLS: Record<string, string> = {
+  openai:     'https://status.openai.com',
+  anthropic:  'https://status.anthropic.com',
+  gemini:     'https://status.cloud.google.com',
+  deepseek:   'https://platform.deepseek.com',
+  groq:       'https://groqstatus.com',
+  together:   'https://status.together.ai',
+  qwen:       'https://bailian.console.aliyun.com',
+  kimi:       'https://platform.moonshot.cn',
+  custom:     '',
+};
 
 const MAX_RECENT = 8;
 
@@ -222,16 +230,34 @@ export function Sidebar({ onShortcuts: _onShortcuts }: { onShortcuts?: () => voi
             </div>
           )}
 
-          {/* Resources */}
+          {/* Resources — dynamic per active provider */}
           <div className={styles.resourcesSection}>
             <div className={`${styles.resourcesLabel} t-label-sm`}>Resources</div>
-            {RESOURCE_ITEMS.map((item) => (
-              <a key={item.id} href={item.href} target="_blank" rel="noopener noreferrer" className={styles.navItem}>
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <span className="t-body-md">{item.label}</span>
-                <span className="material-symbols-outlined" style={{ fontSize: 13, marginLeft: 'auto', color: 'var(--color-outline)' }}>open_in_new</span>
-              </a>
-            ))}
+            {[
+              provider.docsUrl && {
+                id: 'docs',
+                icon: 'description',
+                label: `${provider.name} Docs`,
+                href: provider.docsUrl,
+              },
+              SUPPORT_URLS[provider.id] && {
+                id: 'support',
+                icon: 'help_outline',
+                label: 'Status / Support',
+                href: SUPPORT_URLS[provider.id],
+              },
+            ]
+              .filter(Boolean)
+              .map((item) => {
+                const it = item as { id: string; icon: string; label: string; href: string };
+                return (
+                  <a key={it.id} href={it.href} target="_blank" rel="noopener noreferrer" className={styles.navItem}>
+                    <span className="material-symbols-outlined">{it.icon}</span>
+                    <span className="t-body-md">{it.label}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: 13, marginLeft: 'auto', color: 'var(--color-outline)' }}>open_in_new</span>
+                  </a>
+                );
+              })}
           </div>
         </nav>
 

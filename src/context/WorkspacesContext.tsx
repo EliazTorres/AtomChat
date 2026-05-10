@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Workspace } from '../types/chat';
 
 const STORAGE_KEY = 'ai-chat-workspaces';
+const ACTIVE_KEY  = 'ai-chat-active-workspace';
 
 interface WorkspacesContextType {
   workspaces: Workspace[];
@@ -31,7 +32,15 @@ function load(): Workspace[] {
 
 export function WorkspacesProvider({ children }: { children: ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>(load);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [activeWorkspaceId, _setActiveWorkspaceId] = useState<string | null>(
+    () => localStorage.getItem(ACTIVE_KEY)
+  );
+
+  const setActiveWorkspaceId = (id: string | null) => {
+    _setActiveWorkspaceId(id);
+    if (id) localStorage.setItem(ACTIVE_KEY, id);
+    else localStorage.removeItem(ACTIVE_KEY);
+  };
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(workspaces));
@@ -44,7 +53,7 @@ export function WorkspacesProvider({ children }: { children: ReactNode }) {
     color: string
   ): Workspace => {
     const ws: Workspace = {
-      id: `ws-${Date.now()}`,
+      id: crypto.randomUUID(),
       name,
       description,
       icon,

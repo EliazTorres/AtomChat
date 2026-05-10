@@ -159,7 +159,7 @@ async function streamAnthropic(
 ): Promise<void> {
   const body: Record<string, unknown> = {
     model,
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
     stream: true,
   };
@@ -213,14 +213,16 @@ export async function testConnection(
   provider: AIProvider,
   apiKey: string,
   model: string,
-  customBaseUrl: string
+  customBaseUrl: string,
+  signal?: AbortSignal
 ): Promise<{ ok: boolean; error?: string }> {
-  return new Promise((resolve) => {
-    const timeout = setTimeout(
-      () => resolve({ ok: false, error: 'Request timed out (10s)' }),
-      10000
-    );
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 10_000);
 
+  // If the caller provides an outer signal (e.g. component unmount), chain it.
+  signal?.addEventListener('abort', () => ac.abort());
+
+  return new Promise((resolve) => {
     streamCompletion(
       provider,
       apiKey,
@@ -230,8 +232,14 @@ export async function testConnection(
       customBaseUrl,
       {
         onChunk: () => {},
-        onDone: () => { clearTimeout(timeout); resolve({ ok: true }); },
-        onError: (err) => { clearTimeout(timeout); resolve({ ok: false, error: err.message }); },
+        onDone: () => { clearTimeout(timer); resolve({ ok: true }); },
+        onError: (err) => {
+          clearTimeout(timer);
+          const msg = ac.signal.aborted
+            ? 'Request timed out (10s)'
+            : err.message;
+          resolve({ ok: false, error: msg });
+        },
       }
     );
   });
